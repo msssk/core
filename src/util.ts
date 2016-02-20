@@ -51,18 +51,24 @@ export function debounce<T extends (...args: any[]) => void>(callback: T, delay:
  */
 export function throttle<T extends (...args: any[]) => void>(callback: T, delay: number): T {
 	let ran: boolean;
+	let lastRun = 0;
 
 	return <T> function () {
-		if (ran) {
+		if (lastRun && (Date.now() - lastRun) < delay) {
+			console.log(Date.now() + ' already ran');
 			return;
 		}
 
 		ran = true;
 
+		console.log(Date.now() + ' running throttled fn');
+		lastRun = Date.now();
 		callback.apply(this, arguments);
-		setTimeout(function () {
+		console.log(Date.now() + ' resetting throttle in ms ' + delay);
+		/*setTimeout(function () {
+			console.log(Date.now() + ' resetting throttle');
 			ran = null;
-		}, delay);
+		}, delay);*/
 	};
 }
 

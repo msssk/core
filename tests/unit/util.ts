@@ -111,19 +111,38 @@ registerSuite({
 
 		'allows one callback per interval'() {
 			const dfd = this.async(1000);
-			const spy = sinon.spy();
-			const throttledFunction = util.throttle(spy, 50);
-
+			const spy = sinon.spy(function () {
+				console.log('SPYCOUNT ' + spy.callCount);
+				if (spy.callCount === 3) {
+					dfd.resolve();
+				}
+			});
+			let callCount = 0;
+			const spy2 = function () {
+				callCount += 1;
+				console.log(Date.now() + ' SPYCOUNT ' + callCount);
+				if (callCount === 3) {
+					dfd.resolve();
+				}
+			};
+			const throttledFunction = util.throttle(spy2, 50);
+console.log(Date.now() + ' ONE');
 			throttledFunction();
 
 			setTimeout(function () {
+console.log(Date.now() + ' TWO');
 				throttledFunction();
-			}, 100);
+			}, 55);
 
-			setTimeout(dfd.callback(function () {
+			setTimeout(function () {
+console.log(Date.now() + ' THREE');
+				throttledFunction();
+			}, 110);
+
+			/*setTimeout(dfd.callback(function () {
 				throttledFunction();
 				assert.strictEqual(spy.callCount, 3);
-			}), 200);
+			}), 200);*/
 		}
 	},
 

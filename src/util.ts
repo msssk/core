@@ -1,6 +1,13 @@
 import { Handle } from './interfaces';
 import { createHandle } from './lang';
 
+/*
+ * A note about timing-sensitive functions in JS: JS is not a real-time environment. setTimeout only ensures
+ * that a minimum amount of time will pass before the callback is executed - there is no maximum. In low
+ * resource environments the actual delay may be well over the specified delay. We can get closer to achieving
+ * correct behavior by using time diffs where possible.
+ */
+
 /**
  * Wraps a setTimeout call in a handle, allowing the timeout to be cleared by calling destroy.
  *
@@ -29,15 +36,15 @@ export function debounce<T extends (...args: any[]) => void>(callback: T, delay:
 	// but browsers return/receive a number
 	let timer: any;
 
-	return <T> function () {
+	return <T> function (...args: any[]) {
 		timer && clearTimeout(timer);
 
 		let context = this;
-		let args = arguments;
 
 		timer = setTimeout(function () {
 			callback.apply(context, args);
-			args = context = timer = null;
+			context = null;
+			timer = null;
 		}, delay);
 	};
 }
@@ -50,25 +57,13 @@ export function debounce<T extends (...args: any[]) => void>(callback: T, delay:
  * @return Throttled function
  */
 export function throttle<T extends (...args: any[]) => void>(callback: T, delay: number): T {
-	let ran: boolean;
-	let lastRun = 0;
+	let lastRunTick = 0;
 
-	return <T> function () {
-		if (lastRun && (Date.now() - lastRun) < delay) {
-			console.log(Date.now() + ' already ran');
-			return;
+	return <T> function (...args: any[]) {
+		if (!lastRunTick || (Date.now() - lastRunTick) >= delay) {
+			callback.apply(this, args);
+			lastRunTick = Date.now();
 		}
-
-		ran = true;
-
-		console.log(Date.now() + ' running throttled fn');
-		lastRun = Date.now();
-		callback.apply(this, arguments);
-		console.log(Date.now() + ' resetting throttle in ms ' + delay);
-		/*setTimeout(function () {
-			console.log(Date.now() + ' resetting throttle');
-			ran = null;
-		}, delay);*/
 	};
 }
 
@@ -81,21 +76,21 @@ export function throttle<T extends (...args: any[]) => void>(callback: T, delay:
  * @return Throttled function
  */
 export function throttleAfter<T extends (...args: any[]) => void>(callback: T, delay: number): T {
-	let ran: boolean;
+	let lastRunTick = 0;
+	let ready = true;
 
-	return <T> function () {
-		if (ran) {
-			return;
+	return <T> function (...args: any[]) {
+		if (ready && (!lastRunTick || (Date.now() - lastRunTick) >= delay)) {
+			let context = this;
+			ready = false;
+
+			setTimeout(function () {
+				callback.apply(context, args);
+				lastRunTick = Date.now();
+				args = null;
+				context = null;
+				ready = true;
+			}, delay);
 		}
-
-		ran = true;
-
-		let context = this;
-		let args = arguments;
-
-		setTimeout(function () {
-			callback.apply(context, args);
-			args = context = ran = null;
-		}, delay);
 	};
 }

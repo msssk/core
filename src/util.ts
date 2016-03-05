@@ -68,7 +68,8 @@ export function throttle<T extends (...args: any[]) => void>(callback: T, delay:
 }
 
 /**
- * Like throttle, but calls the callback at the end of each interval rather than the beginning.
+ * Debounces and throttles a function. The first invocation will run debounced. Additional calls during the delay
+ * will be throttled (ignored). After the debounced execution, the next invocation will run debounced.
  * Useful for e.g. resize or scroll events, when debounce would appear unresponsive.
  *
  * @param callback Callback to wrap
@@ -76,20 +77,18 @@ export function throttle<T extends (...args: any[]) => void>(callback: T, delay:
  * @return Throttled function
  */
 export function throttleAfter<T extends (...args: any[]) => void>(callback: T, delay: number): T {
-	let lastRunTick = 0;
-	let ready = true;
+	let ran = false;
 
 	return <T> function (...args: any[]) {
-		if (ready && (!lastRunTick || (Date.now() - lastRunTick) >= delay)) {
+		if (!ran) {
 			let context = this;
-			ready = false;
+
+			ran = true;
 
 			setTimeout(function () {
 				callback.apply(context, args);
-				lastRunTick = Date.now();
-				args = null;
 				context = null;
-				ready = true;
+				ran = false;
 			}, delay);
 		}
 	};

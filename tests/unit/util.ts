@@ -86,7 +86,7 @@ registerSuite({
 		'debounces callback'() {
 			const dfd = this.async(TIMEOUT);
 			const debouncedFunction = util.debounce(dfd.callback(function () {
-				assert.isAbove(Date.now() - lastCallTick, 99,
+				assert.isAbove(Date.now() - lastCallTick, 24,
 					'Function should not be called until period has elapsed without further calls');
 
 				// Typically, we expect the 3rd invocation to be the one that is executed.
@@ -95,19 +95,19 @@ registerSuite({
 				// being eligible for execution.
 				// If the first or second invocation has been called there's no need to let the run loop continue.
 				clearTimeout(handle);
-			}), 100);
+			}), 25);
 
-			let callCount = 1;
+			let runCount = 1;
 			let lastCallTick: number;
 			let handle: any;
 
 			function run() {
 				lastCallTick = Date.now();
 				debouncedFunction();
-				callCount += 1;
+				runCount += 1;
 
-				if (callCount < 4) {
-					handle = setTimeout(run, 20);
+				if (runCount < 4) {
+					handle = setTimeout(run, 5);
 				}
 			}
 
@@ -140,23 +140,36 @@ registerSuite({
 		},
 
 		'throttles callback'() {
-			const spy = sinon.spy();
-			const throttledFunction = util.throttle(spy, 100);
+			const dfd = this.async(TIMEOUT);
+			const spy = sinon.spy(function (a: number) {
+				assert.isAbove(Date.now() - lastRunTick, 24,
+					'Function should not be called until period has elapsed');
 
-			throttledFunction();
+				lastRunTick = Date.now();
+				if (spy.callCount > 1) {
+					dfd.resolve();
+					clearTimeout(handle);
+				}
+			});
+			const throttledFunction = util.throttle(spy, 25);
+
+			let runCount = 1;
+			let lastRunTick = 0;
+			let handle: any;
+
+			function run() {
+				throttledFunction();
+				throttledFunction();
+				runCount += 1;
+
+				if (runCount < 6) {
+					handle = setTimeout(run, 5);
+				}
+			}
+
+			run();
 			assert.strictEqual(spy.callCount, 1,
 				'Function should be called as soon as it is first invoked');
-
-			setTimeout(function () {
-				throttledFunction();
-				throttledFunction();
-				throttledFunction();
-			}, 80);
-
-			setTimeout(this.async().callback(function () {
-				assert.strictEqual(spy.callCount, 1,
-					'Further calls within same interval should be suppressed');
-			}), 150);
 		}
 	},
 
@@ -203,26 +216,6 @@ registerSuite({
 				assert.strictEqual(spy.callCount, 1,
 					'Function should be called once by end of interval');
 			}), 150);
-		},
-
-		'allows one callback per interval'() {
-			const dfd = this.async(1000);
-			const spy = sinon.spy();
-			const throttledFunction = util.throttleAfter(spy, 50);
-
-			throttledFunction();
-
-			setTimeout(function () {
-				throttledFunction();
-			}, 100);
-
-			setTimeout(function () {
-				throttledFunction();
-			}, 200);
-
-			setTimeout(dfd.callback(function () {
-				assert.strictEqual(spy.callCount, 3);
-			}), 300);
 		}
 	}
 });
